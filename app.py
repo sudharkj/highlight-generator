@@ -1,8 +1,11 @@
+import json
 import math
 
 import cv2
 import requests
 from flask import Flask
+
+from predict import score
 
 app = Flask(__name__)
 
@@ -14,7 +17,7 @@ def hello_world():
 
 @app.route('/generate')
 def generate_highlights():
-    url_link = 'junk'
+    url_link = 'https://junk.com/random.mp4'
     path = 'downloads/random.mp4'
     chunk_size = 8192
 
@@ -45,7 +48,12 @@ def generate_highlights():
         count += 1
     video_cap.release()
 
-    return 'Hello World!'
+    BASE_MODEL = 'MobileNet'
+    WEIGHTS_FILE = 'weights_mobilenet_aesthetic_0.07.hdf5'
+    PREDICTIONS_FILE = 'predictions/predicts.json'
+    predictions = score(BASE_MODEL, WEIGHTS_FILE, images_path, PREDICTIONS_FILE)
+
+    return json.dumps(predictions, indent=2)
 
 
 if __name__ == '__main__':
