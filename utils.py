@@ -1,5 +1,8 @@
 import os
 import json
+import random
+import string
+
 import tensorflow as tf
 import numpy as np
 
@@ -51,3 +54,7 @@ def calc_mean_score(score_dist):
 def ensure_dir_exists(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+
+
+def rand_gen(size=32, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
