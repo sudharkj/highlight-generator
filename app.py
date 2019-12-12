@@ -53,7 +53,10 @@ def generate_highlights():
     PREDICTIONS_FILE = 'predictions/predicts.json'
     predictions = score(BASE_MODEL, WEIGHTS_FILE, images_path, PREDICTIONS_FILE)
 
-    return json.dumps(predictions, indent=2)
+    PREDICTIONS_LIMIT = 10
+    predictions = sorted(predictions, key=lambda k: k['mean_score_prediction'], reverse=True)
+
+    return json.dumps(predictions[:PREDICTIONS_LIMIT], indent=2)
 
 
 if __name__ == '__main__':
