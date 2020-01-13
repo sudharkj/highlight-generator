@@ -3,5 +3,6 @@
 **/*.idea
 /downloads
 /images
+/output
 /predictions
 /videos
