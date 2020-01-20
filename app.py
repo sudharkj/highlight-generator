@@ -46,15 +46,15 @@ def allowed_file(filename):
 
 @app.route('/generate', methods=['POST'])
 def generate_highlights():
-    MAX_FRAMES = 500
-    MIN_TIME_STAMP = 1
-    TIME_FRAME = 1 * 60
-    frame_skip_count = 1
-    file_ext = 'jpg'
-    PREDICTIONS_LIMIT = 15
     BASE_MODEL = 'MobileNet'
     AESTHETIC_WEIGHTS_FILE = 'weights_mobilenet_aesthetic_0.07.hdf5'
     TECHNICAL_WEIGHTS_FILE = 'weights_mobilenet_technical_0.11.hdf5'
+
+    MIN_TIME_FRAME = 1 * 60
+    MIN_SAMPLING_RATE = 1 * 60
+    MIN_SCENE_IMAGES = 1
+    MIN_SUMMARY_IMAGES = 10
+    MIN_FRAME_SKIP_COUNT = 1
 
     request_uid = utils.rand_gen()
     path_format = '{}/{}'
@@ -67,10 +67,32 @@ def generate_highlights():
             os.makedirs(dir_path)
     print('[DEBUG] Created required directories')
 
-    file = request.files['file']
+    file = request.files['video']
     if not file or not allowed_file(file.filename):
         print('[INFO] No file uploaded')
         return json.dumps([], indent=2)
+
+    # get other params
+    time_frame = int(request.form['time-frame'])  # in minutes
+    sampling_rate = int(request.form['sampling-rate'])
+    scene_images = int(request.form['scene-images'])
+    summary_images = int(request.form['summary-images'])
+    file_ext = 'jpg'
+    print('[DEBUG] time_frame', time_frame)
+    print('[DEBUG] sampling_rate', sampling_rate)
+    print('[DEBUG] scene_images', scene_images)
+    print('[DEBUG] summary_images', summary_images)
+
+    # make sure that the request-params are within the limits
+    time_frame = max(time_frame * 60, MIN_TIME_FRAME)
+    sampling_rate = max(sampling_rate, MIN_SAMPLING_RATE)
+    scene_images = max(scene_images, MIN_SCENE_IMAGES)
+    summary_images = max(summary_images, MIN_SUMMARY_IMAGES)
+    print('[DEBUG] After ensuring the limits')
+    print('[DEBUG] time_frame', time_frame)
+    print('[DEBUG] sampling_rate', sampling_rate)
+    print('[DEBUG] scene_images', scene_images)
+    print('[DEBUG] summary_images', summary_images)
 
     video_name = secure_filename(file.filename)
     video_file_path = os.path.join(video_path, video_name)
@@ -81,12 +103,12 @@ def generate_highlights():
     fps = video_cap.get(cv2.CAP_PROP_FPS)
     frame_count = video_cap.get(cv2.CAP_PROP_FRAME_COUNT)
     duration = math.ceil(frame_count / fps)
-    if duration > TIME_FRAME:
-        duration = TIME_FRAME
+    if duration > time_frame:
+        duration = time_frame
     print('[DEBUG] Duration', duration)
-    time_skip = max(MIN_TIME_STAMP, math.ceil(duration / MAX_FRAMES))
-    print('[DEBUG] Time Skip', time_skip)
-    frame_skip_count = max(frame_skip_count, math.ceil(time_skip * fps))
+    sampling_rate = min(sampling_rate, math.floor(duration * fps))
+    print('[DEBUG] sampling_rate', sampling_rate)
+    frame_skip_count = max(MIN_FRAME_SKIP_COUNT, math.ceil(duration * fps / sampling_rate))
     print('[DEBUG] Sampling the video after {} frames'.format(frame_skip_count))
 
     success, image = video_cap.read()
@@ -115,13 +137,18 @@ def generate_highlights():
 
         if len(os.listdir(cur_images_path)) == 0:
             print('[Iteration {}] Empty {} and so no prediction'.format(iteration, cur_images_path))
+            predictions = []
         else:
             print('[Iteration {}] Running {} to predict the scores of the sampled frames'.format(iteration, BASE_MODEL))
             predictions = predict.score(BASE_MODEL, TECHNICAL_WEIGHTS_FILE, cur_images_path, None)
             print('[Iteration {}] Completed prediction of frames'.format(iteration))
 
-            prediction = max(predictions, key=lambda k: k['mean_score_prediction'])
-            print('[Iteration {}] Top {} Results:'.format(iteration, PREDICTIONS_LIMIT))
+            predictions = sorted(predictions, key=lambda k: k['mean_score_prediction'], reverse=True)
+            predictions = predictions[:scene_images]
+            print('[Iteration {}] Top {} Results:'.format(iteration, scene_images))
+            print(json.dumps(predictions, indent=2))
+
+        for prediction in predictions:
             cur_location = '{}/{}.{}'.format(cur_images_path, prediction['image_id'], file_ext)
             new_location = '{}/{}.{}'.format(images_path, prediction['image_id'], file_ext)
             shutil.move(cur_location, new_location)
@@ -138,9 +165,10 @@ def generate_highlights():
         # predictions_file = '{}/predicts.json'.format(predictions_path)
         predictions = predict.score(BASE_MODEL, AESTHETIC_WEIGHTS_FILE, images_path, None)
         print('[Final] Completed prediction of frames')
+
         predictions = sorted(predictions, key=lambda k: k['mean_score_prediction'], reverse=True)
-        predictions = predictions[:PREDICTIONS_LIMIT]
-        print('[Final] Top {} Results:'.format(PREDICTIONS_LIMIT))
+        predictions = predictions[:summary_images]
+        print('[Final] Top {} Results:'.format(summary_images))
         print(json.dumps(predictions, indent=2))
 
     for prediction in predictions:
@@ -149,6 +177,7 @@ def generate_highlights():
         shutil.move(cur_location, new_location)
         print('[Final] Moved {} to {}:'.format(cur_location, new_location))
     shutil.rmtree(images_path)
+
     predictions = list(map(lambda prediction: generate_output_item(prediction, request_uid, file_ext), predictions))
     predictions = sorted(predictions, key=lambda k: k['timestamp'])
     print('[Final] Response:')
