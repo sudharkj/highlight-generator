@@ -1,9 +1,9 @@
 import os
 import glob
 
-import utils
-from data_generator import TestDataGenerator
-from model_builder import Nima
+from nima import utils
+from nima.data_generator import TestDataGenerator
+from nima.model_builder import Nima
 
 
 def image_file_to_json(img_path):

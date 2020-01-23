@@ -1,4 +1,3 @@
-import os
 import json
 import random
 import string
@@ -49,11 +48,6 @@ def normalize_labels(labels):
 def calc_mean_score(score_dist):
     score_dist = normalize_labels(score_dist)
     return (score_dist * np.arange(1, 11)).sum()
-
-
-def ensure_dir_exists(dir):
-    if not os.path.exists(dir):
-        os.makedirs(dir)
 
 
 def rand_gen(size=32, chars=string.ascii_uppercase + string.digits):

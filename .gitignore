@@ -1,8 +1,6 @@
-**/.DS_Store
-/__pycache__
+**/*.DS_Store
+**/*__pycache__
 **/*.idea
-/downloads
-/images
 /output
-/predictions
-/videos
+/temp
+/*-local.*
