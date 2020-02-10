@@ -1,6 +1,4 @@
 import json
-import random
-import string
 
 import tensorflow as tf
 import numpy as np
@@ -48,7 +46,3 @@ def normalize_labels(labels):
 def calc_mean_score(score_dist):
     score_dist = normalize_labels(score_dist)
     return (score_dist * np.arange(1, 11)).sum()
-
-
-def rand_gen(size=32, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for x in range(size))

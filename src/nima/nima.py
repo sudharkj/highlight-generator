@@ -24,13 +24,22 @@ def image_dir_to_json(img_dir, img_type='jpg'):
     return samples
 
 
-def predict(model, data_generator):
-    return model.predict_generator(data_generator, workers=8, use_multiprocessing=True, verbose=1)
+def predict(model, data_generator, is_verbose=0):
+    import multiprocessing
+    cpu_count = multiprocessing.cpu_count()
+    is_multi_processing = cpu_count > 1
+
+    return model.predict(
+        data_generator,
+        workers=cpu_count,
+        use_multiprocessing=is_multi_processing,
+        verbose=is_verbose
+    )
 
 
-def score(base_model_name, weights_file, image_source, predictions_file, img_format='jpg'):
+def score(base_model_name, weights_file, image_source, predictions_file=None, img_type='jpg', is_verbose=0):
     image_dir = image_source
-    samples = image_dir_to_json(image_dir, img_type='jpg')
+    samples = image_dir_to_json(image_dir, img_type=img_type)
 
     # build model and load weights
     nima = Nima(base_model_name, weights=None)
@@ -39,10 +48,10 @@ def score(base_model_name, weights_file, image_source, predictions_file, img_for
 
     # initialize data generator
     data_generator = TestDataGenerator(samples, image_dir, 64, 10, nima.preprocessing_function(),
-                                       img_format=img_format)
+                                       img_format=img_type)
 
     # get predictions
-    predictions = predict(nima.nima_model, data_generator)
+    predictions = predict(nima.nima_model, data_generator, is_verbose)
 
     # calc mean scores and add to samples
     for i, sample in enumerate(samples):

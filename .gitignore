@@ -1,6 +1,7 @@
 **/*.DS_Store
 **/*__pycache__
 **/*.idea
+**/*.requirements.txt
 /output
 /temp
-/*-local.*
+**/*-local.*
