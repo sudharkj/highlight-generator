@@ -132,12 +132,12 @@ Optional form inputs:
 
 | Input | Default Value | Description |
 | --- | --- | --- |
-| `time-frame` | 1 minute | time frame in minutes of each scene |
-| `scene-images` | 1 | number of images to extract from each scene |
-| `image-extension` | *jpg* | type of image among *GET /highlights/image-types* the client wants to see |
+| `clip_time` | 1 minute | time in minutes of each clip |
+| `images_per_clip` | 1 | number of images per clip |
+| `image_extension` | *jpg* | type of image among *GET /highlights/image-types* the client wants to see |
 
 The API extracts highlights using [NIMA](https://github.com/idealo/image-quality-assessment) 
-by mimicking a human eye view and scanning the input video to get best technical images in each scene.
+by mimicking a human eye view and scanning the input video to get best technical images from each clip.
 It then generates an aestical score to all those top images and returns the information as an array of predictions.
 
 Prediction:

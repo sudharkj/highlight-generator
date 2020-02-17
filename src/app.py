@@ -5,8 +5,8 @@ from logging.config import dictConfig
 
 from flask import Flask
 
+from generator import utils
 from highlights import highlights
-from utils import reset_generated_dirs
 
 
 def create_app():
@@ -32,7 +32,7 @@ def create_app():
         app.config['TEMP_PREDICTIONS_PATH'],
         app.config['OUTPUT_IMAGES_PATH']
     ]
-    reset_generated_dirs(dirs_to_resets)
+    utils.reset_generated_dirs(dirs_to_resets)
     app.logger.debug("Deleted directories: {}".format(dirs_to_resets))
 
     @app.route('/')
