@@ -1,8 +1,16 @@
 import importlib
+import os
+
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dropout, Dense
 from tensorflow.keras.optimizers import Adam
+
+
+WIDTH = int(os.environ.get("MODEL_INPUT_WIDTH", default='64'))
+HEIGHT = int(os.environ.get("MODEL_INPUT_HEIGHT", default='64'))
+CHANNELS = int(os.environ.get("MODEL_INPUT_CHANNELS", default='3'))
+DIMS = (WIDTH, HEIGHT, CHANNELS)
 
 
 def earth_movers_distance(y_true, y_pred):
@@ -38,7 +46,7 @@ class Nima:
         BaseCnn = getattr(self.base_module, self.base_model_name)
 
         # load pre-trained model
-        self.base_model = BaseCnn(input_shape=(224, 224, 3), weights=self.weights, include_top=False, pooling='avg')
+        self.base_model = BaseCnn(input_shape=DIMS, weights=self.weights, include_top=False, pooling='avg')
 
         # add dropout and dense layer
         x = Dropout(self.dropout_rate)(self.base_model.output)

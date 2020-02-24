@@ -5,6 +5,7 @@ import time
 from concurrent.futures.process import ProcessPoolExecutor
 
 import cv2
+import tensorflow as tf
 from flask import Blueprint, current_app, request, send_from_directory
 
 from generator import get_clip_frames, utils, extract_predicted_frames, append_timestamp, get_predictions
@@ -115,20 +116,25 @@ def generate_highlights():
         'image_extension': image_extension,
     } for clip_id in range(total_clips)]
 
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
-    chunk_size = math.ceil(total_clips / cpu_count)
-
     is_success = True
-    with ProcessPoolExecutor(max_workers=cpu_count) as executor:
-        # larger chunksize improves performance
-        # ref: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
-        for process_is_success in executor.map(get_clip_frames, states, chunksize=chunk_size):
-            # If a func call raises an exception,
-            # then that exception will be raised when its value is retrieved from the iterator.
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if len(gpus) > 0:
+        for state in states:
+            is_success = is_success and get_clip_frames(state)
+    else:
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        chunk_size = math.ceil(total_clips / cpu_count)
+
+        with ProcessPoolExecutor(max_workers=cpu_count) as executor:
+            # larger chunksize improves performance
             # ref: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
-            # hack to know all the exceptions
-            is_success = is_success and process_is_success
+            for process_is_success in executor.map(get_clip_frames, states, chunksize=chunk_size):
+                # If a func call raises an exception,
+                # then that exception will be raised when its value is retrieved from the iterator.
+                # ref: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
+                # hack to know all the exceptions
+                is_success = is_success and process_is_success
 
     if not is_success:
         return utils.get_print_string({

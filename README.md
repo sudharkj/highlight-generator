@@ -49,34 +49,36 @@ and so a project structure different from a typical flask application.
 
 ###### Start the server with script
 
-* Make a copy of *start.sh*, say *start-local.sh*.
+* Make a copy of *app.sh*, say *app-local.sh*.
 
   ```shell
-  cp start.sh start-local.sh
+  cp app.sh app-local.sh
   ```
 
 * Run the start script
 
   ```shell
-  start-local.sh [-h] [--debug] [*] [--mode MODE] [--create-conda-env CONDA_ENV_NAME] [--update-conda-env [CONDA_ENV_NAME]] [--use-conda-env CONDA_ENV_NAME]
+  app-local.sh [-h] [--create-conda-env CONDA_ENV_NAME] [--update-conda-env [CONDA_ENV_NAME]] [-g] [--use-conda-env CONDA_ENV_NAME] [-r] [--mode MODE] [--debug] [*]
   ```
 
   Optional Arguments:
   
   | Argument | Description |
   | --- | --- |
-  | `--mode MODE` | server environment mode, accepted values are [`production`, `development`] |
-  | `--debug` | starts the server in debug mode if the mode is development |
   | `--update-conda-env CONDA_ENV_NAME` | updates existing conda environment CONDA_ENV_NAME, uses the activated environment when CONDA_ENV_NAME is not provided |
   | `--create-conda-env CONDA_ENV_NAME` | creates a new conda environment CONDA_ENV_NAME when both create and update are sent, then tries to creates arguments to app.py as shown below |
+  | `-g, --gpu` | create or update conda environment with tensorflow gpu packages |
   | `--use-conda-env CONDA_ENV_NAME` | starts the app by activating conda environment CONDA_ENV_NAME, this option is ignored if either of --update-conda-env or --create-conda-env are also available |
+  | `-r, --run` | run the application |
+  | `--mode MODE` | server environment mode, accepted values are [`production`, `development`] |
+  | `-d, --debug` | starts the server in debug mode if the mode is development |
   | * | any other arguments required by *src/app.py* as shown in the above section |
 
 Troubleshooting: 
 
 * *`--update-conda-env` option will remain in solving environment*: This happens when the python version is not `3.7.6`. 
 So, use `--create-conda-env` option for the first run if conda environment with `python=3.7.6` is not available. 
-For all subsequent runs use `--use-conda-env` option if required.
+For all subsequent runs use `--use-conda-env` option if required and `-r` to start the server.
 * *Start script throws error `declare: -a: invalid option`*: Start script requires bash 4+. 
 Replace the first line in the above script with the location of bash. 
 For MacOS, it is `/usr/local/bin/bash` installed with [HomeBrew](https://brew.sh/).

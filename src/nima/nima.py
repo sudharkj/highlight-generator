@@ -1,6 +1,8 @@
 import os
 import glob
 
+import tensorflow as tf
+
 from nima import utils
 from nima.data_generator import TestDataGenerator
 from nima.model_builder import Nima
@@ -24,9 +26,7 @@ def image_dir_to_json(img_dir, img_type='jpg'):
     return samples
 
 
-def predict(model, data_generator, is_verbose=0):
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
+def predict(model, data_generator, cpu_count, is_verbose=0):
     is_multi_processing = cpu_count > 1
 
     return model.predict(
@@ -41,17 +41,28 @@ def score(base_model_name, weights_file, image_source, predictions_file=None, im
     image_dir = image_source
     samples = image_dir_to_json(image_dir, img_type=img_type)
 
-    # build model and load weights
-    nima = Nima(base_model_name, weights=None)
-    nima.build()
-    nima.nima_model.load_weights(weights_file)
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if len(gpus) > 0:
+        cpu_count = 1
+        device_name = '/GPU:0'
+    else:
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        device_name = '/device:CPU:0'
 
-    # initialize data generator
-    data_generator = TestDataGenerator(samples, image_dir, 64, 10, nima.preprocessing_function(),
-                                       img_format=img_type)
+    with tf.device(device_name):
+        # build model and load weights
+        nima = Nima(base_model_name, weights=None)
+        nima.build()
+        nima.nima_model.load_weights(weights_file)
 
-    # get predictions
-    predictions = predict(nima.nima_model, data_generator, is_verbose)
+        # initialize data generator
+        batch_size = int(os.environ.get("MODEL_BATCH_SIZE", default='1'))
+        data_generator = TestDataGenerator(samples, image_dir, batch_size, 10, nima.preprocessing_function(),
+                                           img_format=img_type)
+
+        # get predictions
+        predictions = predict(nima.nima_model, data_generator, cpu_count, is_verbose)
 
     # calc mean scores and add to samples
     for i, sample in enumerate(samples):

@@ -10,6 +10,9 @@ import nima
 from generator import utils
 
 BASE_MODEL = 'MobileNet'
+WIDTH = int(os.environ.get("MODEL_INPUT_WIDTH", default='64'))
+HEIGHT = int(os.environ.get("MODEL_INPUT_HEIGHT", default='64'))
+DIMS = (WIDTH, HEIGHT)
 
 
 class BaseMode:
@@ -37,7 +40,7 @@ class BaseMode:
 
     def save_frame_for_prediction(self, timestamp, image):
         image_file_name = '{}/frame_{}.{}'.format(self.images_path, timestamp, self.image_extension)
-        image = cv2.resize(image, (224, 224))
+        image = cv2.resize(image, DIMS)
         cv2.imwrite(image_file_name, image)
 
     def get_predictions(self):

@@ -5,11 +5,16 @@ import tensorflow as tf
 from nima import utils
 
 
+WIDTH = int(os.environ.get("MODEL_INPUT_WIDTH", default='64'))
+HEIGHT = int(os.environ.get("MODEL_INPUT_HEIGHT", default='64'))
+DIMS = (WIDTH, HEIGHT)
+
+
 class TrainDataGenerator(tf.keras.utils.Sequence):
     '''inherits from Keras Sequence base object, allows to use multiprocessing in .fit_generator'''
 
     def __init__(self, samples, img_dir, batch_size, n_classes, basenet_preprocess, img_format,
-                 img_load_dims=(256, 256), img_crop_dims=(224, 224), shuffle=True):
+                 img_load_dims=DIMS, img_crop_dims=DIMS, shuffle=True):
         self.samples = samples
         self.img_dir = img_dir
         self.batch_size = batch_size
@@ -63,7 +68,7 @@ class TestDataGenerator(tf.keras.utils.Sequence):
     '''inherits from Keras Sequence base object, allows to use multiprocessing in .fit_generator'''
 
     def __init__(self, samples, img_dir, batch_size, n_classes, basenet_preprocess, img_format,
-                 img_load_dims=(224, 224)):
+                 img_load_dims=DIMS):
         self.samples = samples
         self.img_dir = img_dir
         self.batch_size = batch_size
