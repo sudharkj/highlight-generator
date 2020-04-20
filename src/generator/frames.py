@@ -41,7 +41,6 @@ def get_clip_frames(state):
 
 def extract_predicted_frames(predictions, video_file_path, images_path, image_extension):
     tag = "[Final]"
-    current_app.logger.debug("{} Saving predicted frames at {}:".format(tag, images_path))
     video_cap = cv2.VideoCapture(video_file_path)
     for prediction in tqdm(predictions, desc="{} Saving".format(tag)):
         video_cap.set(cv2.CAP_PROP_POS_MSEC, prediction['timestamp'])
@@ -51,6 +50,5 @@ def extract_predicted_frames(predictions, video_file_path, images_path, image_ex
             cv2.imwrite(cur_image_file_name, image)
         else:
             current_app.logger.error("{} Unable to read frame at {}ms".format(tag, prediction['timestamp']))
-    current_app.logger.debug("{} Completed saving predicted frames at {}.".format(tag, images_path))
     # release video handles and delete it with the containing folder
     video_cap.release()

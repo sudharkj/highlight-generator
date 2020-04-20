@@ -33,7 +33,6 @@ class HumanEyeMode(BaseMode):
         video_cap = cv2.VideoCapture(self.video_file_path)
         video_cap.set(cv2.CAP_PROP_POS_MSEC, clip_start_time * 1000)
 
-        current_app.logger.debug("{} Sampling {} frames".format(self.tag, frames_in_clip))
         count = 0
         with tqdm(total=frames_in_clip, desc="{} Sampling".format(self.tag)) as frame_bar:
             for frame_id in range(frames_in_clip):
@@ -52,7 +51,6 @@ class HumanEyeMode(BaseMode):
                     if pending_frames > 1:
                         current_app.logger.error("{} Unable to read {} frames".format(self.tag, pending_frames-1))
                     frame_bar.update(pending_frames)
-        current_app.logger.debug("{} Completed sampling frames".format(self.tag))
         # release video handles and delete it with the containing folder
         video_cap.release()
 

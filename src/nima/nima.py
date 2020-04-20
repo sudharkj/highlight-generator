@@ -25,14 +25,13 @@ def image_dir_to_json(img_dir, img_type='jpg'):
 
 
 def predict(model, data_generator, is_verbose=0):
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
-    is_multi_processing = cpu_count > 1
-
+    # enabling multi processing is throwing GeneratorDataset iterator error in 2.1
+    # fixing it by setting workers=1 and use_multiprocessing=False
+    # ref: https://github.com/tensorflow/tensorflow/issues/37515
     return model.predict(
         data_generator,
-        workers=cpu_count,
-        use_multiprocessing=is_multi_processing,
+        workers=1,
+        use_multiprocessing=False,
         verbose=is_verbose
     )
 
@@ -45,9 +44,11 @@ def score(base_model_name, weights_file, image_source, predictions_file=None, im
     nima = Nima(base_model_name, weights=None)
     nima.build()
     nima.nima_model.load_weights(weights_file)
+    # print(nima.nima_model.summary())
 
     # initialize data generator
-    data_generator = TestDataGenerator(samples, image_dir, 64, 10, nima.preprocessing_function(),
+    # use only 1 as batch_size to support lower gpus
+    data_generator = TestDataGenerator(samples, image_dir, 1, 10, nima.preprocessing_function(),
                                        img_format=img_type)
 
     # get predictions

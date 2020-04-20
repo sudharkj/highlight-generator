@@ -2,7 +2,6 @@ import math
 import os
 import shutil
 import time
-from concurrent.futures.process import ProcessPoolExecutor
 
 import cv2
 from flask import Blueprint, current_app, request, send_from_directory
@@ -114,23 +113,10 @@ def generate_highlights():
         'temp_images_path': temp_images_path,
         'image_extension': image_extension,
     } for clip_id in range(total_clips)]
-
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
-    chunk_size = math.ceil(total_clips / cpu_count)
-
-    is_success = True
-    with ProcessPoolExecutor(max_workers=cpu_count) as executor:
-        # larger chunksize improves performance
-        # ref: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
-        for process_is_success in executor.map(get_clip_frames, states, chunksize=chunk_size):
-            # If a func call raises an exception,
-            # then that exception will be raised when its value is retrieved from the iterator.
-            # ref: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
-            # hack to know all the exceptions
-            is_success = is_success and process_is_success
-
-    if not is_success:
+    # manual task assignment in python is making tensorflow to run on cpu even when gpu is available
+    # so implemented sequential requests and removed task scheduling on threads that uses ProcessPoolExecutioner
+    is_failure = [not get_clip_frames(state) for state in states]
+    if any(is_failure):
         return utils.get_print_string({
             'statusText': 'Internal Server Error'
         }), 500

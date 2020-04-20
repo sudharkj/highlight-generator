@@ -44,29 +44,22 @@ class BaseMode:
         pass
 
     def save_only_best_images(self, predictions, new_images_path):
-        current_app.logger.debug(
-            "{} Moving best images from {} to {}:".format(self.tag, self.images_path, new_images_path)
-        )
         for prediction in tqdm(predictions, desc="{} Moving".format(self.tag)):
             cur_location, new_location = tuple(map(
                 lambda dir_path: '{}/{}.{}'.format(dir_path, prediction['image_id'], self.image_extension),
                 [self.images_path, new_images_path])
             )
             shutil.move(cur_location, new_location)
-            current_app.logger.debug("{} Moved {} to {}:".format(self.tag, cur_location, new_location))
         shutil.rmtree(self.images_path)
 
 
 def get_predictions(tag, images_path, weights_file_path, prediction_limit=None):
     predictions = []
     if len(os.listdir(images_path)) > 0:
-        current_app.logger.debug("{} Running {} to predict the scores".format(tag, BASE_MODEL))
         debug_on = os.environ.get("FLASK_DEBUG", default=0)
         predictions = nima.score(BASE_MODEL, weights_file_path, images_path, is_verbose=debug_on)
-        current_app.logger.debug("{} Completed prediction of scores".format(tag))
         predictions = sorted(predictions, key=lambda k: k['mean_score_prediction'], reverse=True)
         predictions = predictions[:prediction_limit] if prediction_limit is not None else predictions
-    current_app.logger.debug("{} Top {} Results: {}".format(tag, prediction_limit, utils.get_print_string(predictions)))
     return predictions
 
 

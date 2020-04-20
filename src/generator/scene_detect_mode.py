@@ -37,7 +37,6 @@ class SceneDetectMode(BaseMode):
         video_cap = cv2.VideoCapture(self.video_file_path)
         video_cap.set(cv2.CAP_PROP_POS_MSEC, clip_start_time * 1000)
 
-        current_app.logger.debug("{} Sampling {} frames".format(self.tag, frames_in_clip))
         with tqdm(total=frames_in_clip, desc="{} Sampling".format(self.tag)) as frame_bar:
             for frame_id in range(frames_in_clip):
                 success, image = video_cap.read()
@@ -51,7 +50,6 @@ class SceneDetectMode(BaseMode):
                     if pending_frames > 1:
                         current_app.logger.error("{} Unable to read {} frames".format(self.tag, pending_frames-1))
                     frame_bar.update(pending_frames)
-        current_app.logger.debug("{} Completed sampling frames".format(self.tag))
         # release video handles and delete it with the containing folder
         video_cap.release()
 
@@ -60,7 +58,6 @@ class SceneDetectMode(BaseMode):
         predictions = list(map(lambda pred: append_timestamp(pred), predictions))
         predictions = sorted(predictions, key=lambda k: k['timestamp'])
 
-        current_app.logger.debug("{} Extracting aesthetic frame from each scene in a clip".format(self.tag))
         to_delete_images = []
         base_hist = None
         start_index = -1
@@ -93,10 +90,8 @@ class SceneDetectMode(BaseMode):
                 base_hist = cur_hist
                 start_index = index
 
-        current_app.logger.debug("{} Deleting non-aesthetic frames from each scene in a clip".format(self.tag))
         for to_delete_image in tqdm(to_delete_images, desc="{} Deleting".format(self.tag)):
             os.remove(to_delete_image)
-        current_app.logger.debug("{} Completed extracting aesthetic frame from each scene in a clip".format(self.tag))
 
         return get_predictions(
             self.tag, self.images_path,
