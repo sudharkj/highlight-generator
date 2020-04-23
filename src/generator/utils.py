@@ -12,48 +12,17 @@ SUPPORTED_IMAGE_EXTENSIONS = ['jpg']
 SUPPORTED_MODES = ['human_eye', 'scene_detect']
 
 
-def rand_gen(size=32, chars=string.ascii_uppercase + string.digits):
+def rand_gen(size=8, chars=string.ascii_lowercase + string.digits):
     random.seed()
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def get_dirs_paths(config):
-    return [
-        config['TEMP_VIDEOS_PATH'],
-        config['TEMP_IMAGES_PATH'],
-        config['TEMP_PREDICTIONS_PATH'],
-        config['OUTPUT_IMAGES_PATH']
-    ]
-
-
-def reset_generated_dirs(dirs_path):
-    # NOTE that the app context is available only when it is serving a request.
-    # So, sending dirs_path instead
+def create_dirs(dirs_path, app_logger, tag=""):
     for dir_path in dirs_path:
         if os.path.exists(dir_path):
             shutil.rmtree(dir_path)
-
-
-def create_base_dirs(request_uid):
-    dirs_path = get_dirs_paths(current_app.config)
-    dirs_path = list(map(lambda base_path: '{}/{}'.format(base_path, request_uid), dirs_path))
-    # this is the first time creating the folder and so create it without any checks
-    for dir_path in dirs_path:
         os.makedirs(dir_path)
-    current_app.logger.debug("[Base] Created directories: {}".format(dirs_path))
-    return tuple(dirs_path)
-
-
-def create_clip_dirs(request_uid, clip_id):
-    dirs_path = list(map(
-        lambda base_path: '{}/{}_{}'.format(base_path, request_uid, clip_id),
-        [current_app.config['TEMP_IMAGES_PATH'], current_app.config['TEMP_PREDICTIONS_PATH']]
-    ))
-    # this is the first time creating the folder and so create it without any checks
-    for dir_path in dirs_path:
-        os.makedirs(dir_path)
-    current_app.logger.debug("[Clip {}] Created directories: {}".format(clip_id, dirs_path))
-    return tuple(dirs_path)
+    app_logger.debug("{} Created directories: {}".format(tag, dirs_path))
 
 
 def is_supported_video_type(filename):

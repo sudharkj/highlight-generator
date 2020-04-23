@@ -5,7 +5,7 @@ import cv2
 from flask import current_app
 from tqdm import tqdm
 
-from generator.base_mode import BaseMode, get_predictions
+from generator.base_mode import BaseMode, save_frame
 
 # human eye params
 RAND_INT_START = 2/3
@@ -28,13 +28,14 @@ class HumanEyeMode(BaseMode):
         random.seed()
         return random.randint(start, end)
 
-    def save_clip_frames(self):
+    def extract(self, prev_state=None):
         clip_start_time, _, frames_in_clip = self.get_clip_details()
         video_cap = cv2.VideoCapture(self.video_file_path)
         video_cap.set(cv2.CAP_PROP_POS_MSEC, clip_start_time * 1000)
 
-        count = 0
-        with tqdm(total=frames_in_clip, desc="{} Sampling".format(self.tag)) as frame_bar:
+        # load from previous state if available
+        count = prev_state if prev_state else 0
+        with tqdm(total=frames_in_clip, desc="{} Extracting".format(self.tag)) as frame_bar:
             for frame_id in range(frames_in_clip):
                 success, image = video_cap.read()
                 frame_skip_limit = self.get_frame_skip_limit()
@@ -45,18 +46,17 @@ class HumanEyeMode(BaseMode):
                     if count >= frame_skip_limit:
                         count = 0
                         timestamp = int(video_cap.get(cv2.CAP_PROP_POS_MSEC))
-                        self.save_frame_for_prediction(timestamp, image)
+                        save_frame(image, self.extracts_path, timestamp, self.image_extension, True)
                 else:
                     pending_frames = frames_in_clip - frame_id
-                    if pending_frames > 1:
-                        current_app.logger.error("{} Unable to read {} frames".format(self.tag, pending_frames-1))
+                    current_app.logger.error("{} Unable to read {} frames".format(self.tag, pending_frames-1))
                     frame_bar.update(pending_frames)
+                    break
         # release video handles and delete it with the containing folder
         video_cap.release()
+        # count contains the termination state of this operation, so return it
+        return count
 
-    def get_predictions(self):
-        return get_predictions(
-            self.tag, self.images_path,
-            current_app.config['TECHNICAL_WEIGHTS_FILE_PATH'],
-            self.prediction_limit
-        )
+    def sample(self, prev_state=None):
+        self.save_tech_samples(self.extracts_path, self.samples_path)
+        return prev_state

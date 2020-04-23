@@ -36,23 +36,47 @@ def predict(model, data_generator, is_verbose=0):
     )
 
 
-def score(base_model_name, weights_file, image_source, predictions_file=None, img_type='jpg', is_verbose=0):
-    image_dir = image_source
-    samples = image_dir_to_json(image_dir, img_type=img_type)
-
+def score(base_model_name, weights_file,
+          image_source, swap_pred="./pred", swap_buffer="./buffer",
+          predictions_file=None, img_type='jpg', is_verbose=0):
     # build model and load weights
     nima = Nima(base_model_name, weights=None)
     nima.build()
     nima.nima_model.load_weights(weights_file)
     # print(nima.nima_model.summary())
 
-    # initialize data generator
-    # use only 1 as batch_size to support lower gpus
-    data_generator = TestDataGenerator(samples, image_dir, 1, 10, nima.preprocessing_function(),
-                                       img_format=img_type)
+    # observed that limiting the number of files to 2048 is reducing the probability of getting cuda out of memory error
+    FILES_LIMIT = 2048
+    samples = []
+    predictions = []
+    files = os.listdir(image_source)
+    while len(files) > 0:
+        # move folders to swap
+        files = files[:FILES_LIMIT]
+        utils.move_files(files, image_source, swap_pred)
 
-    # get predictions
-    predictions = predict(nima.nima_model, data_generator, is_verbose)
+        # generate samples list
+        image_dir = swap_pred
+        cur_samps = image_dir_to_json(image_dir, img_type=img_type)
+        samples.extend(cur_samps)
+
+        # initialize data generator
+        # use only 1 as batch_size to support lower gpus
+        data_generator = TestDataGenerator(
+            cur_samps, image_dir, 1, 10,
+            nima.preprocessing_function(),
+            img_format=img_type
+        )
+        # get predictions
+        cur_preds = predict(nima.nima_model, data_generator, is_verbose)
+        predictions.extend(cur_preds)
+
+        # move files to buffer space
+        utils.move_files(files, swap_pred, swap_buffer)
+        # get new file list
+        files = os.listdir(image_source)
+    # move files back to the original directory
+    utils.move_files(os.listdir(swap_buffer), swap_buffer, image_source)
 
     # calc mean scores and add to samples
     for i, sample in enumerate(samples):

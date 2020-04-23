@@ -1,7 +1,9 @@
 import json
+import shutil
 
 import tensorflow as tf
 import numpy as np
+from tqdm import tqdm
 
 
 def load_json(file_path):
@@ -46,3 +48,18 @@ def normalize_labels(labels):
 def calc_mean_score(score_dist):
     score_dist = normalize_labels(score_dist)
     return (score_dist * np.arange(1, 11)).sum()
+
+
+def move_files(files, cur_dir, new_dir):
+    for file_name in tqdm(
+            files,
+            desc="[nima] Moving **{} -> **{}".format(
+                cur_dir[cur_dir.rindex("/"):],
+                new_dir[new_dir.rindex("/"):]
+            )
+    ):
+        cur_location, new_location = tuple(map(
+            lambda dir_path: '{}/{}'.format(dir_path, file_name),
+            [cur_dir, new_dir])
+        )
+        shutil.move(cur_location, new_location)

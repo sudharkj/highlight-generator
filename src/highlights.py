@@ -1,12 +1,10 @@
-import math
 import os
 import shutil
 import time
 
-import cv2
 from flask import Blueprint, current_app, request, send_from_directory
 
-from generator import get_clip_frames, utils, extract_predicted_frames, append_timestamp, get_predictions
+from generator import utils, get_predictions
 
 # constraints on the params
 MIN_CLIP_TIME = 1
@@ -43,8 +41,7 @@ def get_modes():
     })
 
 
-def generate_output_item(prediction, request_uuid, image_extension):
-    prediction = append_timestamp(prediction)
+def generate_result(prediction, request_uuid, image_extension):
     return {
         'imageUrl': "/highlights/images/{}/{}.{}".format(request_uuid, prediction['image_id'], image_extension),
         'meanScorePrediction': prediction['mean_score_prediction'],
@@ -63,11 +60,6 @@ def generate_highlights():
             'timeTaken': time.time() - start_time
         })
     video_file = request.files['video']
-
-    # create base folders and get their paths
-    request_uid = utils.rand_gen()
-    base_folders = utils.create_base_dirs(request_uid)
-    temp_videos_path, temp_images_path, temp_predictions_path, output_images_path = base_folders
 
     # gracefully get other params
     # clip_time
@@ -90,51 +82,38 @@ def generate_highlights():
     current_app.logger.debug("mode: {}".format(mode))
     current_app.logger.debug("image_extension: {}".format(image_extension))
 
+    # create request directories
+    request_uid = utils.rand_gen()
+    request_dirs = [
+        current_app.config['TEMP_VIDEOS_PATH'],
+        current_app.config['TEMP_IMAGES_PATH'],
+        current_app.config['OUTPUT_IMAGES_PATH']
+    ]
+    request_dirs = list(map(lambda base_path: '{}/{}'.format(base_path, request_uid), request_dirs))
+    temp_videos_path, temp_images_path, output_images_path = request_dirs
+    utils.create_dirs(request_dirs, current_app.logger, "[{}]".format(request_uid))
+
     # download the video
     video_file_path = utils.save_uploaded_file(video_file, temp_videos_path)
 
-    video_cap = cv2.VideoCapture(video_file_path)
-    frames_per_second = video_cap.get(cv2.CAP_PROP_FPS)
-    frame_count = video_cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    total_time = frame_count / frames_per_second
-    total_clips = math.ceil(total_time / (clip_time * 60))
-    video_cap.release()
-
-    states = [{
+    state = {
         'request_uid': request_uid,
         'mode': mode,
-        'clip_id': clip_id + 1,
         'video_file_path': video_file_path,
         'clip_time': clip_time,
         'images_per_clip': images_per_clip,
-        'frames_per_second': frames_per_second,
-        'frame_count': frame_count,
-        'total_time': total_time,
+        'threshold': 0.90,
         'temp_images_path': temp_images_path,
         'image_extension': image_extension,
-    } for clip_id in range(total_clips)]
-    # manual task assignment in python is making tensorflow to run on cpu even when gpu is available
-    # so implemented sequential requests and removed task scheduling on threads that uses ProcessPoolExecutioner
-    is_failure = [not get_clip_frames(state) for state in states]
-    if any(is_failure):
-        return utils.get_print_string({
-            'statusText': 'Internal Server Error'
-        }), 500
+        'predicts_path': output_images_path,
+        'is_verbose': os.environ.get("FLASK_DEBUG", default=0)
+    }
 
-    tag = "[Final]"
-    predictions = get_predictions(
-        tag, temp_images_path, current_app.config['AESTHETIC_WEIGHTS_FILE_PATH']
-    )
+    predictions = get_predictions(state)
+    predictions = list(map(lambda prediction: generate_result(prediction, request_uid, image_extension), predictions))
+    # delete request temp images directory
     shutil.rmtree(temp_images_path)
-    shutil.rmtree(temp_predictions_path)
-
-    predictions = list(
-        map(lambda prediction: generate_output_item(prediction, request_uid, image_extension), predictions)
-    )
-    predictions = sorted(predictions, key=lambda k: k['timestamp'])
-
-    # extract original quality images
-    extract_predicted_frames(predictions, video_file_path, output_images_path, image_extension)
+    # delete request video directory
     shutil.rmtree(temp_videos_path)
 
     return utils.get_print_string({

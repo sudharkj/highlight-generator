@@ -22,7 +22,6 @@ def create_app():
     app.config.from_mapping(
         TEMP_VIDEOS_PATH="{}/videos".format(args.temp_path),
         TEMP_IMAGES_PATH="{}/images".format(args.temp_path),
-        TEMP_PREDICTIONS_PATH="{}/predictions".format(args.temp_path),
         TECHNICAL_WEIGHTS_FILE_PATH='./resources/weights/weights_mobilenet_technical_0.11.hdf5',
         AESTHETIC_WEIGHTS_FILE_PATH='./resources/weights/weights_mobilenet_aesthetic_0.07.hdf5',
         OUTPUT_IMAGES_PATH="{}/images".format(args.output_path)
@@ -30,11 +29,9 @@ def create_app():
     dirs_to_resets = [
         app.config['TEMP_VIDEOS_PATH'],
         app.config['TEMP_IMAGES_PATH'],
-        app.config['TEMP_PREDICTIONS_PATH'],
         app.config['OUTPUT_IMAGES_PATH']
     ]
-    utils.reset_generated_dirs(dirs_to_resets)
-    app.logger.debug("Deleted directories: {}".format(dirs_to_resets))
+    utils.create_dirs(dirs_to_resets, app.logger, "[flask]")
 
     # print available resources
     import tensorflow as tf
