@@ -5,12 +5,7 @@ import time
 from flask import Blueprint, current_app, request, send_from_directory
 
 from generator import utils, get_predictions
-
-# constraints on the params
-MIN_CLIP_TIME = 1
-MIN_IMAGES_PER_CLIP = 1
-DEFAULT_IMAGE_EXTENSION = utils.SUPPORTED_IMAGE_EXTENSIONS[0]
-DEFAULT_MODE = utils.SUPPORTED_MODES[0]
+from generator.utils import SUPPORTED_MODES, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 
 highlights = Blueprint("highlights", __name__, url_prefix="/highlights")
 
@@ -20,25 +15,8 @@ def hello_highlights():
     return "Hello, Highlights!"
 
 
-@highlights.route('/video-types', methods=['GET'])
-def get_video_types():
-    return utils.get_print_string({
-        'videoTypes': utils.SUPPORTED_VIDEO_EXTENSIONS
-    })
-
-
-@highlights.route('/image-types', methods=['GET'])
-def get_image_types():
-    return utils.get_print_string({
-        'imageTypes': utils.SUPPORTED_IMAGE_EXTENSIONS
-    })
-
-
-@highlights.route('/modes', methods=['GET'])
-def get_modes():
-    return utils.get_print_string({
-        'modes': utils.SUPPORTED_MODES
-    })
+def is_supported_video_type(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS
 
 
 def generate_result(prediction, request_uuid, image_extension):
@@ -52,38 +30,45 @@ def generate_result(prediction, request_uuid, image_extension):
 @highlights.route('/generate', methods=['POST'])
 def generate_highlights():
     start_time = time.time()
+    request_uid = utils.rand_gen()
+    tag = "[{}]".format(request_uid)
     # return immediately if video is not sent in the request
-    if 'video' not in request.files or not utils.is_supported_video_type(request.files['video'].filename):
-        current_app.logger.info('No file uploaded')
+    if 'video' not in request.files or not is_supported_video_type(request.files['video'].filename):
+        current_app.logger.info("{} No file uploaded".format(tag))
         return utils.get_print_string({
             'predictions': [],
             'timeTaken': time.time() - start_time
         })
     video_file = request.files['video']
 
-    # gracefully get other params
-    # clip_time
-    clip_time = utils.get_validated_arg(request.form, 'clip_time', int, MIN_CLIP_TIME)  # in minutes
-    clip_time = max(clip_time, MIN_CLIP_TIME)  # in seconds
-    # images_per_clip
-    images_per_clip = utils.get_validated_arg(request.form, 'images_per_clip', int, MIN_IMAGES_PER_CLIP)
-    images_per_clip = max(images_per_clip, MIN_IMAGES_PER_CLIP)
-    # mode
-    mode = utils.get_validated_arg(request.form, 'mode', str, DEFAULT_MODE)
-    mode = mode.lower()
-    mode = mode if utils.is_supported_mode(mode) else DEFAULT_MODE
-    # image_extension
-    image_extension = utils.get_validated_arg(request.form, 'image_extension', str, DEFAULT_IMAGE_EXTENSION)
-    image_extension = image_extension.lower()
-    image_extension = image_extension if utils.is_supported_image_type(image_extension) else DEFAULT_IMAGE_EXTENSION
+    # gracefully get params from form
+    mode = utils.get_param_value(request.form, {
+        'name': "mode",
+        'data_type': str,
+        'allowed': SUPPORTED_MODES
+    })
+    images_per_clip = utils.get_param_value(request.form, {
+        'name': "images_per_clip",
+        'data_type': int,
+        'allowed': list(range(1, 6, 1))
+    })
+    image_extension = utils.get_param_value(request.form, {
+        'name': "image_extension",
+        'data_type': str,
+        'allowed': SUPPORTED_IMAGE_EXTENSIONS
+    })
+    total_clips = utils.get_param_value(request.form, {
+        'name': "total_clips",
+        'data_type': int,
+        'allowed': list(range(1, 26, 1))
+    })
     current_app.logger.debug("Values used for generating highlights")
-    current_app.logger.debug("clip_time: {}".format(clip_time))
-    current_app.logger.debug("images_per_clip: {}".format(images_per_clip))
-    current_app.logger.debug("mode: {}".format(mode))
-    current_app.logger.debug("image_extension: {}".format(image_extension))
+    current_app.logger.debug("{} mode: {}".format(tag, mode))
+    current_app.logger.debug("{} images_per_clip: {}".format(tag, images_per_clip))
+    current_app.logger.debug("{} image_extension: {}".format(tag, image_extension))
+    current_app.logger.debug("{} total_clips: {}".format(tag, total_clips))
 
     # create request directories
-    request_uid = utils.rand_gen()
     request_dirs = [
         current_app.config['TEMP_VIDEOS_PATH'],
         current_app.config['TEMP_IMAGES_PATH'],
@@ -91,7 +76,7 @@ def generate_highlights():
     ]
     request_dirs = list(map(lambda base_path: '{}/{}'.format(base_path, request_uid), request_dirs))
     temp_videos_path, temp_images_path, output_images_path = request_dirs
-    utils.create_dirs(request_dirs, current_app.logger, "[{}]".format(request_uid))
+    utils.create_dirs(request_dirs, current_app.logger, tag)
 
     # download the video
     video_file_path = utils.save_uploaded_file(video_file, temp_videos_path)
@@ -100,13 +85,11 @@ def generate_highlights():
         'request_uid': request_uid,
         'mode': mode,
         'video_file_path': video_file_path,
-        'clip_time': clip_time,
+        'total_clips': total_clips,
         'images_per_clip': images_per_clip,
-        'threshold': 0.90,
         'temp_images_path': temp_images_path,
         'image_extension': image_extension,
-        'predicts_path': output_images_path,
-        'is_verbose': os.environ.get("FLASK_DEBUG", default=0)
+        'predicts_path': output_images_path
     }
 
     predictions = get_predictions(state)

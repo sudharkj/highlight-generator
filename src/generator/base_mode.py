@@ -38,7 +38,6 @@ class BaseMode:
         self.frame_count = state['frame_count']
         self.total_time = state['total_time']
         self.image_extension = state['image_extension']
-        self.threshold = state['threshold']
         # swap directories
         self.swap_path = state['swap_path']
         self.swap_preds = state['swap_preds']

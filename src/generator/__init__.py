@@ -1,5 +1,7 @@
 from generator import utils
 
+IS_VERBOSE = False
+
 
 def get_predictions(state):
     import math
@@ -14,7 +16,8 @@ def get_predictions(state):
     frames_per_second = video_cap.get(cv2.CAP_PROP_FPS)
     frame_count = video_cap.get(cv2.CAP_PROP_FRAME_COUNT)
     total_time = frame_count / frames_per_second
-    total_clips = math.ceil(total_time / (state['clip_time'] * 60))
+    clip_time = math.ceil(total_time / (state['total_clips'] * 60))
+    total_clips = math.ceil(total_time / (clip_time * 60))
     video_cap.release()
 
     # update the state object
@@ -22,7 +25,9 @@ def get_predictions(state):
         'frames_per_second': frames_per_second,
         'frame_count': frame_count,
         'total_time': total_time,
+        'clip_time': clip_time,
         'total_clips': total_clips,
+        'is_verbose': IS_VERBOSE,
         'tag': "[{}]".format(state['request_uid'])
     })
 

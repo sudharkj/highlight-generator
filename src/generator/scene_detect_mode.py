@@ -16,6 +16,15 @@ HIST_SIZE = [H_BINS, S_BINS]
 H_RANGES = [0, 180]
 S_RANGES = [0, 256]
 RANGES = H_RANGES + S_RANGES  # concat lists
+# threshold ratio for scene change detection
+THRESHOLD = 0.90
+
+
+def is_scene_detected(hist, base_hist):
+    if base_hist is None:
+        return False
+    comp_value = cv2.compareHist(base_hist, hist, cv2.HISTCMP_CORREL)
+    return comp_value < THRESHOLD
 
 
 class SceneDetectMode(BaseMode):
@@ -44,12 +53,6 @@ class SceneDetectMode(BaseMode):
         video_cap.release()
         return prev_state
 
-    def is_scene_detected(self, hist, base_hist):
-        if base_hist is None:
-            return False
-        comp_value = cv2.compareHist(base_hist, hist, cv2.HISTCMP_CORREL)
-        return comp_value < self.threshold
-
     def sample(self, prev_state=None):
         # get aesthetic predictions
         predictions = nima.score(
@@ -76,7 +79,7 @@ class SceneDetectMode(BaseMode):
 
             # obtain and compare histograms
             # when there is a scene change detection or it is the last image in the video
-            scene_detected = self.is_scene_detected(cur_hist, base_hist)
+            scene_detected = is_scene_detected(cur_hist, base_hist)
             is_terminal = self.clip_id == self.total_clips and (index + 1) == len(predictions)
             if not scene_detected:
                 cur_preds.append(aest_pred)

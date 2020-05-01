@@ -25,10 +25,6 @@ def create_dirs(dirs_path, app_logger, tag=""):
     app_logger.debug("{} Created directories: {}".format(tag, dirs_path))
 
 
-def is_supported_video_type(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS
-
-
 def is_supported_image_type(image_type):
     return image_type.lower() in SUPPORTED_VIDEO_EXTENSIONS
 
@@ -37,15 +33,17 @@ def is_supported_mode(mode):
     return mode.lower() in SUPPORTED_MODES
 
 
-def get_validated_arg(request_form, request_param, data_type, default_value=None):
-    return_value = default_value
-    if request_param in request_form:
+def get_param_value(request_form, request_param):
+    if request_param['name'] in request_form:
         try:
-            return_value = data_type(request_form[request_param])
+            return_value = request_param['data_type'](request_form[request_param['name']])
         except ValueError as vErr:
             current_app.logger.error(vErr)
-            return_value = default_value
-    return return_value
+            return request_param['allowed'][0]
+
+        return_value = return_value.lower() if request_param['data_type'] is str else return_value
+        return return_value if return_value in request_param['allowed'] else request_param['allowed'][0]
+    return request_param['allowed'][0]
 
 
 def save_uploaded_file(file, base_path):
